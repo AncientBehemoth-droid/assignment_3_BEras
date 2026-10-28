@@ -24,9 +24,9 @@ class Dense(Diffable):
         return [Tensor(self.w)]
 
     def get_weight_gradients(self) -> list[Tensor]:
-        x = self.inputs[0]
-        batch_size = x.shape[0]
-        dW = Tensor(np.expand_dims(x, axis=-1))
+        x = self.inputs[0]                      
+        _, output_size = self.w.shape
+        dW = Tensor(x[:, :, np.newaxis] * np.ones((1, 1, output_size)))
         db = Tensor(np.ones(self.b.shape))
         return [dW, db]
 
