@@ -18,13 +18,17 @@ class Dense(Diffable):
         """
         Forward pass for a dense layer! Refer to lecture slides for how this is computed.
         """
-        return NotImplementedError
+        return Tensor(x @ self.w + self.b)
 
     def get_input_gradients(self) -> list[Tensor]:
-        return NotImplementedError
+        return [Tensor(self.w)]
 
     def get_weight_gradients(self) -> list[Tensor]:
-        return NotImplementedError
+        x = self.inputs[0]
+        batch_size = x.shape[0]
+        dW = Tensor(np.expand_dims(x, axis=-1))
+        db = Tensor(np.ones(self.b.shape))
+        return [dW, db]
 
     @staticmethod
     def _initialize_weight(initializer, input_size, output_size) -> tuple[Variable, Variable]:
@@ -53,4 +57,20 @@ class Dense(Diffable):
             "kaiming",
         ), f"Unknown dense weight initialization strategy '{initializer}' requested"
 
-        return None, None
+        if initializer == "zero":
+            w = np.zeros((input_size, output_size))
+        elif initializer == "normal":
+            w = np.random.normal(0, 1, (input_size, output_size))
+        elif initializer == "xavier":
+            # Glorot normal: stddev = sqrt(2 / (fan_in + fan_out))
+            std = np.sqrt(2.0 / (input_size + output_size))
+            w = np.random.normal(0, std, (input_size, output_size))
+        elif initializer == "kaiming":
+            # He normal: stddev = sqrt(2 / fan_in)
+            std = np.sqrt(2.0 / input_size)
+            w = np.random.normal(0, std, (input_size, output_size))
+        else:
+            w = np.zeros((input_size, output_size))
+
+        b = np.zeros((output_size,))
+        return Variable(w), Variable(b)

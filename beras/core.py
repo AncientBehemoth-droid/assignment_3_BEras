@@ -19,7 +19,7 @@ class Tensor(np.ndarray):
             return input_array
         
         # Task 1: input the data to construct the object. 
-        obj = np.asarray(a=???).view(type=cls)
+        obj = np.asarray(a=input_array).view(type=cls)
         obj.trainable = True
         return obj
 
@@ -70,22 +70,23 @@ class Weighted(ABC):
     @property
     def trainable_variables(self) -> list[Tensor]:
         """Collects all trainable variables in the module"""
-        return NotImplementedError
+        return [w for w in self.weights if getattr(w, 'trainable', True)]
 
     @property
     def non_trainable_variables(self) -> list[Tensor]:
         """Collects all non-trainable variables in the module"""
-        return NotImplementedError
+        return [w for w in self.weights if not getattr(w, 'trainable', True)]
 
     @property
     def trainable(self) -> bool:
         """Returns true if any of the weights are trainable"""
-        return NotImplementedError
+        return any(getattr(w, 'trainable', True) for w in self.weights)
 
     @trainable.setter
     def trainable(self, trainable: bool):
         """Sets the trainable status of all weights to trainable"""
-        pass 
+        for w in self.weights:
+            w.trainable = trainable
 
 
 class Diffable(Callable, Weighted):

@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+import numpy as np
 from beras.core import Diffable, Tensor
 
 class GradientTape:
@@ -39,3 +39,59 @@ class GradientTape:
 
         # What tensor and what gradient is for you to implement!
         # compose_input_gradients and compose_weight_gradients are methods that will be helpful
+        if target.ndim == 0:
+            grads[id(target)] = [Tensor(np.array(1.0))]
+        else:
+            grads[id(target)] = [Tensor(np.ones_like(target))]
+
+        visited = set()
+        while queue:
+            current = queue.pop(0)
+            curr_id = id(current)
+            if curr_id in visited:
+                continue
+            visited.add(curr_id)
+            
+            layer = self.previous_layers[curr_id]
+            if layer is None:
+                continue
+            
+            upstream = grads[curr_id]
+            
+            if current.ndim == 0 and hasattr(layer, 'get_input_gradients'):
+                input_grads = layer.get_input_gradients()
+                for inp, ig in zip(layer.inputs, input_grads):
+                    inp_id = id(inp)
+                    grads[inp_id] = [ig]
+                    if inp_id not in visited:
+                        queue.append(inp)
+                weight_grads = layer.get_weight_gradients()
+                for w, wg in zip(layer.weights, weight_grads):
+                    grads[id(w)] = [wg]
+                continue
+            
+            weight_grads = layer.compose_weight_gradients(upstream)
+            for w, wg in zip(layer.weights, weight_grads):
+                w_id = id(w)
+                if grads[w_id] is None:
+                    grads[w_id] = [wg]
+                else:
+                    grads[w_id][0] = grads[w_id][0] + wg  
+            
+            input_grads = layer.compose_input_gradients(upstream)
+            for inp, ig in zip(layer.inputs, input_grads):
+                inp_id = id(inp)
+                if grads[inp_id] is None:
+                    grads[inp_id] = [ig]
+                else:
+                    grads[inp_id][0] = grads[inp_id][0] + ig
+                if inp_id not in visited:
+                    queue.append(inp)
+        result = []
+        for src in sources:
+            g = grads[id(src)]
+            if g is None:
+                result.append(Tensor(np.zeros_like(src)))
+            else:
+                result.append(g[0] if isinstance(g, list) else g)
+        return result
